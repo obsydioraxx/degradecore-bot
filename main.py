@@ -478,6 +478,13 @@ async def delete_temp_voice_after(channel, delay):
 @bot.event
 async def on_ready():
     await bot.tree.sync()
+    guild = bot.get_guild(GUILD_ID)
+    if guild:
+        try:
+            await guild.edit(system_channel=None)
+            print("System channel отключён")
+        except Exception as e:
+            print(f"System channel: {e}")
     print(f"Бот {bot.user} онлайн.")
     print(f"Сервер: {GUILD_ID}")
     print(f"Verify: {VERIFY_CHANNEL_ID}/{VERIFY_MESSAGE_ID}")
