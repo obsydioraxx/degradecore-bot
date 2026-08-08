@@ -461,6 +461,13 @@ async def closevoice_cmd(interaction: discord.Interaction):
                 pass
     await interaction.response.send_message("Временный канал не найден.", ephemeral=True)
 
+async def delete_temp_voice_after(channel, delay):
+    await asyncio.sleep(delay)
+    try:
+        await channel.delete(reason="Время вышло")
+    except:
+        pass
+
 @bot.event
 async def on_ready():
     await bot.tree.sync()
@@ -492,62 +499,87 @@ async def on_member_join(member):
 
 @bot.event
 async def on_raw_reaction_add(payload):
-    if payload.member and payload.member.bot:
+    if payload.user_id == bot.user.id:
         return
     guild = bot.get_guild(GUILD_ID)
     if not guild:
         return
 
+    # VERIFY GATE
     if payload.channel_id == VERIFY_CHANNEL_ID and payload.message_id == VERIFY_MESSAGE_ID and str(payload.emoji) == "✅":
-        member = payload.member or await guild.fetch_member(payload.user_id)
-        if not member:
-            return
-
-        boy_role = discord.utils.get(guild.roles, name="boy")
-        member_role = discord.utils.get(guild.roles, name="m3mbR")
-
-        if boy_role and boy_role not in member.roles:
-            await member.add_roles(boy_role, reason="Вериф")
-        if member_role and member_role not in member.roles:
-            await member.add_roles(member_role, reason="Вериф")
-
-        channel = bot.get_channel(VERIFY_CHANNEL_ID)
-        if channel:
-            msg = await channel.fetch_message(VERIFY_MESSAGE_ID)
-            await msg.remove_reaction("✅", member)
-
-        log_ch = discord.utils.get(guild.text_channels, name="mod-logs")
-        if log_ch:
-            await log_ch.send(f"{member.mention} верифицирован.")
-        print(f"{member.name} верифицирован")
-
-    elif payload.channel_id == GENDER_CHANNEL_ID and payload.message_id == GENDER_MESSAGE_ID and str(payload.emoji) == "🔔":
-        member = payload.member or await guild.fetch_member(payload.user_id)
-        if not member:
-            return
-
-        girl_role = discord.utils.get(guild.roles, name="girl")
-        if girl_role and girl_role in member.roles:
-            return
-
-        channel = bot.get_channel(GENDER_CHANNEL_ID)
-        if channel:
-            msg = await channel.fetch_message(GENDER_MESSAGE_ID)
-            await msg.remove_reaction("🔔", member)
-
-        mod_cat = discord.utils.get(guild.categories, name="MODERATION")
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(view_channel=False, connect=False),
-            member: discord.PermissionOverwrite(view_channel=True, connect=True, speak=True),
-        }
-        mod_role = discord.utils.get(guild.roles, name="%&")
-        owner_role = discord.utils.get(guild.roles, name="@#!")
-        if mod_role:
-            overwrites[mod_role] = discord.PermissionOverwrite(view_channel=True, connect=True, speak=True, move_members=True)
-        if owner_role:
-            overwrites[owner_role] = discord.PermissionOverwrite(view_channel=True, connect=True, speak=True, move_members=True)
-
         try:
+            member = payload.member
+            if not member:
+                try:
+                    member = await guild.fetch_member(payload.user_id)
+                except Exception as e:
+                    print(f"VERIFY: не удалось получить member {payload.user_id}: {e}")
+                    return
+            if not member:
+                return
+
+            boy_role = discord.utils.get(guild.roles, name="boy")
+            member_role = discord.utils.get(guild.roles, name="m3mbR")
+
+            if boy_role and boy_role not in member.roles:
+                await member.add_roles(boy_role, reason="Вериф")
+                print(f"VERIFY: выдана boy {member.name}")
+            if member_role and member_role not in member.roles:
+                await member.add_roles(member_role, reason="Вериф")
+                print(f"VERIFY: выдана m3mbR {member.name}")
+
+            channel = bot.get_channel(VERIFY_CHANNEL_ID)
+            if channel:
+                try:
+                    msg = await channel.fetch_message(VERIFY_MESSAGE_ID)
+                    await msg.remove_reaction("✅", member)
+                except Exception as e:
+                    print(f"VERIFY: не удалось удалить реакцию: {e}")
+
+            log_ch = discord.utils.get(guild.text_channels, name="mod-logs")
+            if log_ch:
+                await log_ch.send(f"{member.mention} верифицирован.")
+            print(f"VERIFY: {member.name} верифицирован")
+        except Exception as e:
+            print(f"VERIFY ERROR: {e}")
+
+    # GENDERCHECK
+    elif payload.channel_id == GENDER_CHANNEL_ID and payload.message_id == GENDER_MESSAGE_ID and str(payload.emoji) == "🔔":
+        try:
+            member = payload.member
+            if not member:
+                try:
+                    member = await guild.fetch_member(payload.user_id)
+                except Exception as e:
+                    print(f"GENDER: не удалось получить member {payload.user_id}: {e}")
+                    return
+            if not member:
+                return
+
+            girl_role = discord.utils.get(guild.roles, name="girl")
+            if girl_role and girl_role in member.roles:
+                return
+
+            channel = bot.get_channel(GENDER_CHANNEL_ID)
+            if channel:
+                try:
+                    msg = await channel.fetch_message(GENDER_MESSAGE_ID)
+                    await msg.remove_reaction("🔔", member)
+                except Exception as e:
+                    print(f"GENDER: не удалось удалить реакцию: {e}")
+
+            mod_cat = discord.utils.get(guild.categories, name="MODERATION")
+            overwrites = {
+                guild.default_role: discord.PermissionOverwrite(view_channel=False, connect=False),
+                member: discord.PermissionOverwrite(view_channel=True, connect=True, speak=True),
+            }
+            mod_role = discord.utils.get(guild.roles, name="%&")
+            owner_role = discord.utils.get(guild.roles, name="@#!")
+            if mod_role:
+                overwrites[mod_role] = discord.PermissionOverwrite(view_channel=True, connect=True, speak=True, move_members=True)
+            if owner_role:
+                overwrites[owner_role] = discord.PermissionOverwrite(view_channel=True, connect=True, speak=True, move_members=True)
+
             temp_ch = await guild.create_voice_channel(
                 name=f"gender-check-{member.name[:10]}",
                 category=mod_cat,
@@ -565,14 +597,16 @@ async def on_raw_reaction_add(payload):
                 f"Удалится через 10 минут."
             )
 
-            await asyncio.sleep(600)
-            try:
-                await temp_ch.delete(reason="Время вышло")
-            except:
-                pass
+            asyncio.create_task(delete_temp_voice_after(temp_ch, 600))
 
         except Exception as e:
-            await channel.send(f"Ошибка: {e}")
+            print(f"GENDER ERROR: {e}")
+            try:
+                ch = bot.get_channel(GENDER_CHANNEL_ID)
+                if ch:
+                    await ch.send(f"Ошибка проверки: {e}")
+            except:
+                pass
 
 @bot.event
 async def on_voice_state_update(member, before, after):
