@@ -365,8 +365,15 @@ async def top_cmd(interaction: discord.Interaction):
     embed = discord.Embed(title="Топ богачей", color=WHITE)
     for i, (uid_str, coins) in enumerate(sorted_econ, 1):
         user = interaction.guild.get_member(int(uid_str))
-        name = user.mention if user else f"ID:{uid_str}"
-        embed.add_field(name=f"{i}. {name}", value=f"{coins} coin", inline=False)
+        if not user:
+            try:
+                user = await interaction.guild.fetch_member(int(uid_str))
+            except:
+                user = None
+        if user:
+            embed.add_field(name=f"{i}. {user.display_name}", value=f"{user.mention}\n{coins} coin", inline=False)
+        else:
+            embed.add_field(name=f"{i}. Unknown", value=f"ID:{uid_str}\n{coins} coin", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="setupinfo", description="Залить инфу во все каналы только @#!")
@@ -505,7 +512,6 @@ async def on_raw_reaction_add(payload):
     if not guild:
         return
 
-    # VERIFY GATE
     if payload.channel_id == VERIFY_CHANNEL_ID and payload.message_id == VERIFY_MESSAGE_ID and str(payload.emoji) == "✅":
         try:
             member = payload.member
@@ -543,7 +549,6 @@ async def on_raw_reaction_add(payload):
         except Exception as e:
             print(f"VERIFY ERROR: {e}")
 
-    # GENDERCHECK
     elif payload.channel_id == GENDER_CHANNEL_ID and payload.message_id == GENDER_MESSAGE_ID and str(payload.emoji) == "🔔":
         try:
             member = payload.member
