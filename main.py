@@ -2,10 +2,10 @@ import os
 import discord
 import datetime
 
-BOT_TOKEN = os.environ["MTUzNTQ5NzA3ODY3Nzk3MTA0NA.GCNwX2.P5b4FBS_sP9B6OzL3MkUTHk3gPk4kc0Hxsb84E"]
-GUILD_ID = int(os.environ["1535491122413961218"])
-VERIFY_CHANNEL_ID = int(os.environ["1535504240846438440"])
-VERIFY_MESSAGE_ID = int(os.environ["1535504262006579272"])
+BOT_TOKEN = os.environ["BOT_TOKEN"]
+GUILD_ID = int(os.environ["GUILD_ID"])
+VERIFY_CHANNEL_ID = int(os.environ["VERIFY_CHANNEL_ID"])
+VERIFY_MESSAGE_ID = int(os.environ["VERIFY_MESSAGE_ID"])
 
 intents = discord.Intents.all()
 activity = discord.Activity(type=discord.ActivityType.watching, name="DEGRADECORE")
