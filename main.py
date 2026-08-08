@@ -7,9 +7,6 @@ import asyncio
 from discord import app_commands
 from discord.ext import commands
 
-# ═══════════════════════════════════════════════
-# ENVIRONMENT
-# ═══════════════════════════════════════════════
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 GUILD_ID = int(os.environ["GUILD_ID"])
 VERIFY_CHANNEL_ID = int(os.environ["VERIFY_CHANNEL_ID"])
@@ -17,9 +14,6 @@ VERIFY_MESSAGE_ID = int(os.environ["VERIFY_MESSAGE_ID"])
 GENDER_CHANNEL_ID = int(os.environ.get("GENDER_CHANNEL_ID", 0))
 GENDER_MESSAGE_ID = int(os.environ.get("GENDER_MESSAGE_ID", 0))
 
-# ═══════════════════════════════════════════════
-# CONFIG
-# ═══════════════════════════════════════════════
 ECONOMY_FILE = "economy.json"
 INVENTORY_FILE = "inventory.json"
 VOICE_FILE = "voice_sessions.json"
@@ -27,17 +21,14 @@ COINS_PER_HOUR = 25
 CUSTOM_ROLE_PRICE = 7000
 
 SHOP_ITEMS = {
-    "^^": {"price": 1000, "description": "VIP — проверенный тролль. Особый статус.", "color": "teal"},
-    "***": {"price": 5000, "description": "Элита — доступ к закрытым каналам и войсам.", "color": "purple"},
-    "toxiclord": {"price": 15000, "description": "Toxic Lord — вершина иерархии троллей.", "color": "orange"},
-    "bigboystep": {"price": 3000, "description": "Big Boy Step — косметическая роль для стиля.", "color": "green"},
-    "nightcrawler": {"price": 3000, "description": "Night Crawler — косметическая роль для стиля.", "color": "dark_purple"},
-    "voidwalker": {"price": 3000, "description": "Void Walker — косметическая роль для стиля.", "color": "cyan"},
+    "^^": {"price": 1000, "color": "teal"},
+    "***": {"price": 5000, "color": "purple"},
+    "toxiclord": {"price": 15000, "color": "orange"},
+    "bigboystep": {"price": 3000, "color": "green"},
+    "nightcrawler": {"price": 3000, "color": "dark_purple"},
+    "voidwalker": {"price": 3000, "color": "cyan"},
 }
 
-# ═══════════════════════════════════════════════
-# DATA MANAGER
-# ═══════════════════════════════════════════════
 class DataManager:
     def __init__(self):
         self.economy = self._load(ECONOMY_FILE)
@@ -65,17 +56,12 @@ class DataManager:
 
 data = DataManager()
 
-# ═══════════════════════════════════════════════
-# BOT SETUP
-# ═══════════════════════════════════════════════
 intents = discord.Intents.all()
 activity = discord.Activity(type=discord.ActivityType.watching, name="DEGRADECORE")
 bot = commands.Bot(command_prefix="!", intents=intents, activity=activity, status=discord.Status.online)
 bot.remove_command("help")
 
-# ═══════════════════════════════════════════════
-# VIEWS & UI
-# ═══════════════════════════════════════════════
+WHITE = 0xFFFFFF
 
 class ShopSelect(discord.ui.Select):
     def __init__(self):
@@ -83,11 +69,11 @@ class ShopSelect(discord.ui.Select):
         for role_name, item in SHOP_ITEMS.items():
             options.append(discord.SelectOption(
                 label=role_name,
-                description=f"{item['price']}🪙 — {item['description'][:50]}",
+                description=f"{item['price']} coin",
                 value=role_name,
                 emoji="🛒"
             ))
-        super().__init__(placeholder="Выбери роль для покупки...", options=options, min_values=1, max_values=1)
+        super().__init__(placeholder="Выбери роль", options=options, min_values=1, max_values=1)
 
     async def callback(self, interaction: discord.Interaction):
         role_name = self.values[0]
@@ -96,13 +82,13 @@ class ShopSelect(discord.ui.Select):
         bal = data.economy.get(uid, 0)
 
         if bal < item["price"]:
-            return await interaction.response.send_message(f"❌ Недостаточно монет. У тебя **{bal}**🪙, нужно **{item['price']}**🪙.", ephemeral=True)
+            return await interaction.response.send_message(f"У тебя {bal} coin. Нужно {item['price']}. Иди в войс.", ephemeral=True)
 
         role = discord.utils.get(interaction.guild.roles, name=role_name)
         if not role:
-            return await interaction.response.send_message("❌ Роль не найдена на сервере.", ephemeral=True)
+            return await interaction.response.send_message("Роли нет. Пиши владельцу.", ephemeral=True)
         if role in interaction.user.roles:
-            return await interaction.response.send_message("❌ У тебя уже есть эта роль.", ephemeral=True)
+            return await interaction.response.send_message("У тебя уже есть эта роль, дебил.", ephemeral=True)
 
         data.economy[uid] = bal - item["price"]
         data.save_economy()
@@ -113,8 +99,8 @@ class ShopSelect(discord.ui.Select):
             data.inventory[uid]["roles"].append(role_name)
         data.save_inventory()
 
-        await interaction.user.add_roles(role, reason="Куплено в Toxic Market")
-        await interaction.response.send_message(f"✅ Ты купил роль **{role_name}** за {item['price']}🪙! Баланс: **{data.economy[uid]}**🪙.", ephemeral=True)
+        await interaction.user.add_roles(role, reason="Куплено")
+        await interaction.response.send_message(f"Купил {role_name} за {item['price']} coin. Баланс: {data.economy[uid]} coin.", ephemeral=True)
 
 class ShopView(discord.ui.View):
     def __init__(self):
@@ -125,7 +111,7 @@ class InventoryButton(discord.ui.Button):
     def __init__(self, role_name, action):
         self.role_name = role_name
         self.action = action
-        label = "👁️ Показать" if action == "show" else "🙈 Скрыть"
+        label = "Показать" if action == "show" else "Скрыть"
         style = discord.ButtonStyle.green if action == "show" else discord.ButtonStyle.red
         super().__init__(label=label, style=style, custom_id=f"inv_{action}_{role_name}")
 
@@ -133,62 +119,62 @@ class InventoryButton(discord.ui.Button):
         uid = str(interaction.user.id)
         role = discord.utils.get(interaction.guild.roles, name=self.role_name)
         if not role:
-            return await interaction.response.send_message("❌ Роль не найдена.", ephemeral=True)
+            return await interaction.response.send_message("Роли нет.", ephemeral=True)
 
         inv = data.inventory.get(uid, {"roles": [], "hidden": []})
 
         if self.action == "hide":
             if role in interaction.user.roles:
-                await interaction.user.remove_roles(role, reason="Скрыто через инвентарь")
+                await interaction.user.remove_roles(role, reason="Скрыто")
                 if self.role_name not in inv["hidden"]:
                     inv["hidden"].append(self.role_name)
                 data.inventory[uid] = inv
                 data.save_inventory()
-                await interaction.response.send_message(f"🙈 Роль **{self.role_name}** скрыта.", ephemeral=True)
+                await interaction.response.send_message(f"{self.role_name} скрыта.", ephemeral=True)
             else:
-                await interaction.response.send_message("❌ Роль уже скрыта.", ephemeral=True)
+                await interaction.response.send_message("Уже скрыта.", ephemeral=True)
         else:
             if role not in interaction.user.roles:
-                await interaction.user.add_roles(role, reason="Показано через инвентарь")
+                await interaction.user.add_roles(role, reason="Показано")
                 if self.role_name in inv["hidden"]:
                     inv["hidden"].remove(self.role_name)
                 data.inventory[uid] = inv
                 data.save_inventory()
-                await interaction.response.send_message(f"👁️ Роль **{self.role_name}** показана.", ephemeral=True)
+                await interaction.response.send_message(f"{self.role_name} видна.", ephemeral=True)
 
-class CreateRoleModal(discord.ui.Modal, title="Создать свою роль"):
-    role_name = discord.ui.TextInput(label="Название роли", placeholder="mycoolrole", max_length=32, required=True)
-    role_color = discord.ui.TextInput(label="Цвет (hex, без #)", placeholder="FF5733", max_length=6, required=True)
+class CreateRoleModal(discord.ui.Modal, title="Создать роль"):
+    role_name = discord.ui.TextInput(label="Название", placeholder="mycoolrole", max_length=32, required=True)
+    role_color = discord.ui.TextInput(label="Цвет HEX без #", placeholder="FF5733", max_length=6, required=True)
 
     async def on_submit(self, interaction: discord.Interaction):
         uid = str(interaction.user.id)
         bal = data.economy.get(uid, 0)
 
         if bal < CUSTOM_ROLE_PRICE:
-            return await interaction.response.send_message(f"❌ Недостаточно монет. Нужно **{CUSTOM_ROLE_PRICE}**🪙, у тебя **{bal}**🪙.", ephemeral=True)
+            return await interaction.response.send_message(f"Нужно {CUSTOM_ROLE_PRICE} coin, у тебя {bal}. Иди в войс.", ephemeral=True)
 
         name = str(self.role_name).strip().replace(" ", "").replace("-", "")
         if len(name) < 2 or len(name) > 32:
-            return await interaction.response.send_message("❌ Название должно быть от 2 до 32 символов (без пробелов и дефисов).", ephemeral=True)
+            return await interaction.response.send_message("От 2 до 32 символов, без пробелов и дефисов.", ephemeral=True)
 
         color_str = str(self.role_color).strip().replace("#", "")
         try:
             color = discord.Color(int(color_str, 16))
         except:
-            return await interaction.response.send_message("❌ Неверный формат цвета. Пример: FF5733", ephemeral=True)
+            return await interaction.response.send_message("Неверный HEX. Пример: FF5733", ephemeral=True)
 
         existing = discord.utils.get(interaction.guild.roles, name=name)
         if existing:
-            return await interaction.response.send_message("❌ Роль с таким названием уже существует.", ephemeral=True)
+            return await interaction.response.send_message("Такая роль уже есть.", ephemeral=True)
 
         try:
             new_role = await interaction.guild.create_role(
                 name=name, color=color, hoist=True, mentionable=True,
                 permissions=discord.Permissions.none(),
-                reason=f"Кастомная роль от {interaction.user.name}"
+                reason=f"Кастом от {interaction.user.name}"
             )
         except Exception as e:
-            return await interaction.response.send_message(f"❌ Ошибка создания роли: {e}", ephemeral=True)
+            return await interaction.response.send_message(f"Ошибка: {e}", ephemeral=True)
 
         data.economy[uid] = bal - CUSTOM_ROLE_PRICE
         data.save_economy()
@@ -198,31 +184,31 @@ class CreateRoleModal(discord.ui.Modal, title="Создать свою роль"
         data.inventory[uid]["roles"].append(name)
         data.save_inventory()
 
-        await interaction.user.add_roles(new_role, reason="Создана через /createrole")
+        await interaction.user.add_roles(new_role, reason="Создана")
         await interaction.response.send_message(
-            f"✅ Роль **{name}** создана! Цвет: `#{color_str}`. Стоимость: **{CUSTOM_ROLE_PRICE}**🪙. Баланс: **{data.economy[uid]}**🪙.",
+            f"Роль {name} создана. Цвет #{color_str}. Стоимость {CUSTOM_ROLE_PRICE} coin. Баланс {data.economy[uid]} coin.",
             ephemeral=True
         )
 
-# ═══════════════════════════════════════════════
-# SLASH COMMANDS
-# ═══════════════════════════════════════════════
+def is_custom_role(uid, role_name):
+    inv = data.inventory.get(uid, {"roles": [], "hidden": []})
+    return role_name in inv["roles"] and role_name not in SHOP_ITEMS
 
-@bot.tree.command(name="store", description="🛒 Магазин ролей")
+@bot.tree.command(name="store", description="Магазин ролей")
 async def store_cmd(interaction: discord.Interaction):
     if interaction.guild.id != GUILD_ID:
         return
     embed = discord.Embed(
-        title="🛒 TOXIC MARKET",
-        description=f"Покупай роли за монеты. Зарабатывай **{COINS_PER_HOUR}🪙/час** в голосовых каналах.\n\nСоздай свою роль: `/createrole` (**{CUSTOM_ROLE_PRICE}**🪙)",
-        color=0x8B0000
+        title="TOXIC MARKET",
+        description=f"Покупай роли. {COINS_PER_HOUR} coin/час в войсах. Своя роль: /createrole {CUSTOM_ROLE_PRICE} coin",
+        color=WHITE
     )
     for role_name, item in SHOP_ITEMS.items():
-        embed.add_field(name=f"`{role_name}` — {item['price']}🪙", value=item["description"], inline=False)
-    embed.set_footer(text="Выбери роль из меню ниже ↓")
+        embed.add_field(name=f"{role_name} — {item['price']} coin", value="⠀", inline=False)
+    embed.set_footer(text="Выбери роль ниже")
     await interaction.response.send_message(embed=embed, view=ShopView(), ephemeral=True)
 
-@bot.tree.command(name="inventory", description="🎒 Твои роли")
+@bot.tree.command(name="inventory", description="Твои роли")
 async def inventory_cmd(interaction: discord.Interaction):
     if interaction.guild.id != GUILD_ID:
         return
@@ -230,17 +216,17 @@ async def inventory_cmd(interaction: discord.Interaction):
     inv = data.inventory.get(uid, {"roles": [], "hidden": []})
 
     if not inv["roles"]:
-        return await interaction.response.send_message("🎒 У тебя пока нет ролей. Купи в `/store` или создай `/createrole`.", ephemeral=True)
+        return await interaction.response.send_message("У тебя нет ролей. Купи в /store или создай /createrole.", ephemeral=True)
 
-    embed = discord.Embed(title="🎒 Инвентарь ролей", color=0x8B0000)
-    embed.description = f"Баланс: **{data.economy.get(uid, 0)}**🪙\n\n"
+    embed = discord.Embed(title="Инвентарь", color=WHITE)
+    embed.description = f"Баланс: {data.economy.get(uid, 0)} coin\n\n"
 
     view = discord.ui.View(timeout=60)
     for role_name in inv["roles"]:
         role = discord.utils.get(interaction.guild.roles, name=role_name)
-        status = "🙈 Скрыта" if role_name in inv["hidden"] else "👁️ Видна"
+        status = "Скрыта" if role_name in inv["hidden"] else "Видна"
         if role:
-            embed.description += f"{status} — <@&{role.id}> (`{role_name}`)\n"
+            embed.description += f"{status} — <@&{role.id}> {role_name}\n"
             if role_name in inv["hidden"]:
                 view.add_item(InventoryButton(role_name, "show"))
             else:
@@ -248,37 +234,142 @@ async def inventory_cmd(interaction: discord.Interaction):
 
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
-@bot.tree.command(name="createrole", description="✨ Создать свою кастомную роль (7000🪙)")
+@bot.tree.command(name="createrole", description="Создать свою роль 7000 coin")
 async def createrole_cmd(interaction: discord.Interaction):
     if interaction.guild.id != GUILD_ID:
         return
     await interaction.response.send_modal(CreateRoleModal())
 
-@bot.tree.command(name="bal", description="💰 Проверить баланс")
+@bot.tree.command(name="rolecolor", description="Сменить цвет своей роли")
+@app_commands.describe(role="Твоя роль", color="HEX без #")
+async def rolecolor_cmd(interaction: discord.Interaction, role: discord.Role, color: str):
+    if interaction.guild.id != GUILD_ID:
+        return
+    uid = str(interaction.user.id)
+    if not is_custom_role(uid, role.name):
+        return await interaction.response.send_message("Это не твоя кастомная роль.", ephemeral=True)
+    color_str = color.strip().replace("#", "")
+    try:
+        new_color = discord.Color(int(color_str, 16))
+    except:
+        return await interaction.response.send_message("Неверный HEX. Пример: FF5733", ephemeral=True)
+    try:
+        await role.edit(color=new_color, reason=f"{interaction.user.name}")
+        await interaction.response.send_message(f"Цвет {role.name} изменён на #{color_str}.", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"Ошибка: {e}", ephemeral=True)
+
+@bot.tree.command(name="rolename", description="Переименовать свою роль")
+@app_commands.describe(role="Твоя роль", name="Новое имя")
+async def rolename_cmd(interaction: discord.Interaction, role: discord.Role, name: str):
+    if interaction.guild.id != GUILD_ID:
+        return
+    uid = str(interaction.user.id)
+    if not is_custom_role(uid, role.name):
+        return await interaction.response.send_message("Это не твоя кастомная роль.", ephemeral=True)
+    new_name = name.strip().replace(" ", "").replace("-", "")
+    if len(new_name) < 2 or len(new_name) > 32:
+        return await interaction.response.send_message("От 2 до 32 символов.", ephemeral=True)
+    existing = discord.utils.get(interaction.guild.roles, name=new_name)
+    if existing:
+        return await interaction.response.send_message("Такая роль уже есть.", ephemeral=True)
+    try:
+        old_name = role.name
+        await role.edit(name=new_name, reason=f"{interaction.user.name}")
+        inv = data.inventory.get(uid, {"roles": [], "hidden": []})
+        if old_name in inv["roles"]:
+            inv["roles"].remove(old_name)
+            inv["roles"].append(new_name)
+        if old_name in inv.get("hidden", []):
+            inv["hidden"].remove(old_name)
+            inv["hidden"].append(new_name)
+        data.inventory[uid] = inv
+        data.save_inventory()
+        await interaction.response.send_message(f"Роль переименована в {new_name}.", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"Ошибка: {e}", ephemeral=True)
+
+@bot.tree.command(name="roleicon", description="Сменить иконку роли")
+@app_commands.describe(role="Твоя роль", image="Прикрепи картинку PNG или JPG")
+async def roleicon_cmd(interaction: discord.Interaction, role: discord.Role, image: discord.Attachment):
+    if interaction.guild.id != GUILD_ID:
+        return
+    uid = str(interaction.user.id)
+    if not is_custom_role(uid, role.name):
+        return await interaction.response.send_message("Это не твоя кастомная роль.", ephemeral=True)
+    if not image.content_type or not image.content_type.startswith("image/"):
+        return await interaction.response.send_message("Нужна картинка.", ephemeral=True)
+    try:
+        img_bytes = await image.read()
+        await role.edit(icon=img_bytes, reason=f"{interaction.user.name}")
+        await interaction.response.send_message(f"Иконка {role.name} обновлена.", ephemeral=True)
+    except discord.Forbidden:
+        await interaction.response.send_message("Сервер должен иметь буст 2 уровня для иконок ролей.", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"Ошибка: {e}", ephemeral=True)
+
+@bot.tree.command(name="roledelete", description="Удалить свою роль")
+@app_commands.describe(role="Твоя роль")
+async def roledelete_cmd(interaction: discord.Interaction, role: discord.Role):
+    if interaction.guild.id != GUILD_ID:
+        return
+    uid = str(interaction.user.id)
+    if not is_custom_role(uid, role.name):
+        return await interaction.response.send_message("Это не твоя кастомная роль.", ephemeral=True)
+    try:
+        await role.delete(reason=f"{interaction.user.name}")
+        inv = data.inventory.get(uid, {"roles": [], "hidden": []})
+        if role.name in inv["roles"]:
+            inv["roles"].remove(role.name)
+        if role.name in inv.get("hidden", []):
+            inv["hidden"].remove(role.name)
+        data.inventory[uid] = inv
+        data.save_inventory()
+        await interaction.response.send_message(f"Роль {role.name} удалена.", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"Ошибка: {e}", ephemeral=True)
+
+@bot.tree.command(name="rolehoist", description="Поднять или опустить роль в списке")
+@app_commands.describe(role="Твоя роль")
+async def rolehoist_cmd(interaction: discord.Interaction, role: discord.Role):
+    if interaction.guild.id != GUILD_ID:
+        return
+    uid = str(interaction.user.id)
+    if not is_custom_role(uid, role.name):
+        return await interaction.response.send_message("Это не твоя кастомная роль.", ephemeral=True)
+    try:
+        new_hoist = not role.hoist
+        await role.edit(hoist=new_hoist, reason=f"{interaction.user.name}")
+        status = "поднята" if new_hoist else "опущена"
+        await interaction.response.send_message(f"Роль {role.name} {status}.", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"Ошибка: {e}", ephemeral=True)
+
+@bot.tree.command(name="bal", description="Баланс")
 async def bal_cmd(interaction: discord.Interaction):
     if interaction.guild.id != GUILD_ID:
         return
     uid = str(interaction.user.id)
     coins = data.economy.get(uid, 0)
-    embed = discord.Embed(title="💰 Баланс", description=f"**{coins}**🪙", color=0xFFD700)
-    embed.set_footer(text=f"Зарабатывай {COINS_PER_HOUR}🪙/час в голосовом канале.")
+    embed = discord.Embed(title="Баланс", description=f"{coins} coin", color=WHITE)
+    embed.set_footer(text=f"{COINS_PER_HOUR} coin/час в войсе")
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-@bot.tree.command(name="top", description="🏆 Топ богачей")
+@bot.tree.command(name="top", description="Топ богачей")
 async def top_cmd(interaction: discord.Interaction):
     if interaction.guild.id != GUILD_ID:
         return
     if not data.economy:
-        return await interaction.response.send_message("📊 Пока никто не заработал монет.", ephemeral=True)
+        return await interaction.response.send_message("Никто ничего не заработал.", ephemeral=True)
     sorted_econ = sorted(data.economy.items(), key=lambda x: x[1], reverse=True)[:10]
-    embed = discord.Embed(title="🏆 Топ богачей DEGRADECORE", color=0xFFD700)
+    embed = discord.Embed(title="Топ богачей", color=WHITE)
     for i, (uid_str, coins) in enumerate(sorted_econ, 1):
         user = interaction.guild.get_member(int(uid_str))
-        name = user.mention if user else f"`ID:{uid_str}`"
-        embed.add_field(name=f"{i}. {name}", value=f"{coins}🪙", inline=False)
+        name = user.mention if user else f"ID:{uid_str}"
+        embed.add_field(name=f"{i}. {name}", value=f"{coins} coin", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-@bot.tree.command(name="setupinfo", description="📋 Отправить инфо во все каналы (только @#!)")
+@bot.tree.command(name="setupinfo", description="Залить инфу во все каналы только @#!")
 @app_commands.checks.has_role("@#!")
 async def setupinfo_cmd(interaction: discord.Interaction):
     if interaction.guild.id != GUILD_ID:
@@ -287,77 +378,65 @@ async def setupinfo_cmd(interaction: discord.Interaction):
 
     channels_info = {
         "sacred-scrolls": {
-            "title": "📜 ПРАВИЛА DEGRADECORE",
+            "title": "ПРАВИЛА DEGRADECORE",
             "desc": (
-                "**Это не обычный сервер. Это локалка интернет-троллей.**\n\n"
-                "📌 **Концепт:**\n"
-                "• Здесь можно обзываться, троллить, токсить\n"
-                "• Любой троллинг / токсичность НЕ модерируется\n"
-                "• Свобода слова в полном объеме\n\n"
-                "⚠️ **Запрещено (это не троллинг, это преступление):**\n"
-                "1. Доксинг (распространение личных данных)\n"
-                "2. Слив личной информации без согласия\n"
-                "3. Угрозы реальной жизни / насилие IRL\n"
-                "4. CP / любой контент с участием несовершеннолетних\n"
-                "5. Реклама сторонних серверов / спам\n"
-                "6. Фишинг / скам ссылки\n"
-                "7. Обход банов через альты\n"
-                "8. Взлом аккаунтов / социнженерия\n\n"
-                f"💰 **Экономика:**\n"
-                f"• {COINS_PER_HOUR}🪙 = 1 час в голосовом канале\n"
-                "• Покупай роли в </store:0>\n"
-                "• Создай свою роль: </createrole:0> (7000🪙)\n\n"
-                "🔒 **Ограничения:**\n"
-                "• Ссылки и изображения может постить только @#!\n"
-                "• Остальные — текстовые сообщения"
+                "Здесь анархия. Делай что хочешь.\n\n"
+                "Запрещено только:\n"
+                "1. Докс\n"
+                "2. Угрозы IRL\n"
+                "3. CP\n"
+                "4. Спам рекламой\n"
+                "5. Фишинг\n"
+                "6. Обход банов\n\n"
+                "Всё остальное разрешено. Тролль, токси, оскорбляй — пока не забанят.\n\n"
+                f"Экономика: {COINS_PER_HOUR} coin/час в войсе. Покупай роли в /store. Своя роль: /createrole {CUSTOM_ROLE_PRICE} coin"
             )
         },
-        "echo-chamber": {"title": "📢 НОВОСТИ", "desc": "Официальные объявления. Писать может только `@#!`."},
-        "role-ritual": {"title": "🎭 РОЛИ", "desc": "Дополнительные роли через реакции (если настроено)."},
-        "verify-gate": {"title": "🛡️ ВЕРИФИКАЦИЯ", "desc": "Нажми ✅ чтобы получить роли `m3mbR` + `boy` и доступ к серверу."},
-        "gendercheck": {"title": "🔔 ПРОВЕРКА ГЕНДЕРА", "desc": "Девушки — нажми 🔔. Модератор проверит и выдаст роль `girl`."},
-        "snitchguide": {"title": "📖 ГАЙД ДЛЯ НОВИЧКОВ", "desc": "Полный обзор сервера: что где, зачем и как тут общаться.\n\n**Кратко:**\n• Прочитай правила в <#sacred-scrolls>\n• Зарабатывай монеты в голосовых каналах\n• Покупай роли в </store:0>\n• Общайся в <#void-chatter>\n• Троллинг — норма, но без докса и угроз IRL"},
-        "void-chatter": {"title": "💬 ОБЩИЙ ЧАТ", "desc": "Говори что угодно. Тролль кого угодно. Токсичность — норма."},
-        "meme-dimension": {"title": "🖼️ МЕМЫ", "desc": "Мемы и медиа. Загрузка файлов только для `@#!`."},
-        "offtopic-abyss": {"title": "🌀 ОФФТОП", "desc": "Любые темы вне контекста. Полный хаос приветствуется."},
-        "bot-commands": {"title": "🤖 СТОРОННИЕ БОТЫ", "desc": "Команды других ботов."},
-        "commandline": {"title": "⌨️ КОМАНДЫ DEGRADECORE", "desc": "Используй slash-команды:\n</store:0> — магазин\n</inventory:0> — твои роли\n</createrole:0> — создать роль\n</bal:0> — баланс\n</top:0> — топ богачей"},
-        "toxic-market": {"title": "🛒 TOXIC MARKET", "desc": f"Магазин ролей. Зарабатывай **{COINS_PER_HOUR}🪙/час** в голосовых каналах. Используй </store:0>."},
-        "star-vault": {"title": "🔒 ЭЛИТНЫЙ ЧАТ", "desc": "Закрытый чат для роли `***`. Только для избранных троллей."},
-        "mod-logs": {"title": "🛡️ ЛОГИ", "desc": "Журнал действий модераторов и бота."},
-        "mod-chat": {"title": "🛡️ МОД-ЧАТ", "desc": "Чат для команды модерации."},
-        "reports": {"title": "📩 ЖАЛОБЫ", "desc": "Если кто-то вышел за рамки (докс, угрозы IRL) — пиши сюда."},
+        "echo-chamber": {"title": "НОВОСТИ", "desc": "Официальные объявления. Писать только @#!."},
+        "role-ritual": {"title": "РОЛИ", "desc": "Дополнительные роли через реакции."},
+        "verify-gate": {"title": "ВЕРИФИКАЦИЯ", "desc": "Нажми ✅. Получишь m3mbR + boy и доступ к серверу."},
+        "gendercheck": {"title": "ПРОВЕРКА", "desc": "Девушки — жми 🔔. Модер проверит и выдаст girl."},
+        "snitchguide": {"title": "ГАЙД", "desc": "Кратко:\n• Правила в sacred-scrolls\n• Монеты в войсах\n• Роли в /store\n• Общий чат void-chatter\n• Троллинг норма, без докса и угроз IRL"},
+        "void-chatter": {"title": "ОБЩИЙ ЧАТ", "desc": "Говори что хочешь. Тролль кого хочешь."},
+        "meme-dimension": {"title": "МЕМЫ", "desc": "Мемы и медиа. Загрузка только @#!."},
+        "offtopic-abyss": {"title": "ОФФТОП", "desc": "Любые темы. Полный хаос."},
+        "bot-commands": {"title": "СТОРОННИЕ БОТЫ", "desc": "Команды других ботов."},
+        "commandline": {"title": "КОМАНДЫ БОТА", "desc": "/store — магазин\n/inventory — роли\n/createrole — создать роль\n/rolecolor — цвет\n/rolename — переименовать\n/roleicon — иконка\n/rolehoist — поднять/опустить\n/roledelete — удалить\n/bal — баланс\n/top — топ"},
+        "toxic-market": {"title": "TOXIC MARKET", "desc": f"Магазин ролей. {COINS_PER_HOUR} coin/час в войсах. Используй /store."},
+        "star-vault": {"title": "ЭЛИТНЫЙ ЧАТ", "desc": "Закрытый чат для ***. Только избранные."},
+        "mod-logs": {"title": "ЛОГИ", "desc": "Журнал действий."},
+        "mod-chat": {"title": "МОД-ЧАТ", "desc": "Чат для модерации."},
     }
 
     sent = 0
     for ch_name, info in channels_info.items():
         ch = discord.utils.get(interaction.guild.text_channels, name=ch_name)
         if ch:
-            embed = discord.Embed(title=info["title"], description=info["desc"], color=0x8B0000)
-            embed.set_footer(text="DEGRADECORE | Автоматическое сообщение")
+            embed = discord.Embed(title=info["title"], description=info["desc"], color=WHITE)
+            embed.set_footer(text="DEGRADECORE")
             try:
                 await ch.send(embed=embed)
                 sent += 1
             except:
                 pass
-    await interaction.followup.send(f"✅ Информация отправлена в **{sent}** каналов.", ephemeral=True)
+    await interaction.followup.send(f"Инфа залита в {sent} каналов.", ephemeral=True)
 
-@bot.tree.command(name="givecoins", description="💰 Выдать монеты (только @#!)")
+@bot.tree.command(name="givecoins", description="Выдать монеты только @#!")
 @app_commands.checks.has_role("@#!")
-@app_commands.describe(member="Кому выдать", amount="Сколько")
+@app_commands.describe(member="Кому", amount="Сколько")
 async def givecoins_cmd(interaction: discord.Interaction, member: discord.Member, amount: int):
     if interaction.guild.id != GUILD_ID:
         return
     if amount <= 0:
-        return await interaction.response.send_message("❌ Сумма должна быть положительной.", ephemeral=True)
+        return await interaction.response.send_message("Сумма положительная.", ephemeral=True)
     uid = str(member.id)
     data.economy[uid] = data.economy.get(uid, 0) + amount
     data.save_economy()
-    await interaction.response.send_message(f"✅ Выдано **{amount}**🪙 {member.mention}. Баланс: **{data.economy[uid]}**🪙.", ephemeral=True)
+    await interaction.response.send_message(f"Выдано {amount} coin {member.mention}. Баланс: {data.economy[uid]} coin.", ephemeral=True)
 
-@bot.tree.command(name="takecoins", description="💰 Забрать монеты (только @#!)")
+@bot.tree.command(name="takecoins", description="Забрать монеты только @#!")
 @app_commands.checks.has_role("@#!")
-@app_commands.describe(member="У кого забрать", amount="Сколько")
+@app_commands.describe(member="У кого", amount="Сколько")
 async def takecoins_cmd(interaction: discord.Interaction, member: discord.Member, amount: int):
     if interaction.guild.id != GUILD_ID:
         return
@@ -366,9 +445,9 @@ async def takecoins_cmd(interaction: discord.Interaction, member: discord.Member
     new_bal = max(0, current - amount)
     data.economy[uid] = new_bal
     data.save_economy()
-    await interaction.response.send_message(f"✅ Снято **{amount}**🪙 у {member.mention}. Баланс: **{new_bal}**🪙.", ephemeral=True)
+    await interaction.response.send_message(f"Снято {amount} coin у {member.mention}. Баланс: {new_bal} coin.", ephemeral=True)
 
-@bot.tree.command(name="closevoice", description="🔒 Закрыть временный войс проверки (только %&)")
+@bot.tree.command(name="closevoice", description="Удалить временный войс только %&")
 @app_commands.checks.has_any_role("%&", "@#!")
 async def closevoice_cmd(interaction: discord.Interaction):
     if interaction.guild.id != GUILD_ID:
@@ -377,24 +456,20 @@ async def closevoice_cmd(interaction: discord.Interaction):
         if ch.name.startswith("gender-check-") or ch.name.startswith("verify-"):
             try:
                 await ch.delete(reason="Проверка завершена")
-                return await interaction.response.send_message("✅ Временный голосовой канал удалён.", ephemeral=True)
+                return await interaction.response.send_message("Временный канал удалён.", ephemeral=True)
             except:
                 pass
-    await interaction.response.send_message("❌ Временный голосовой канал не найден.", ephemeral=True)
-
-# ═══════════════════════════════════════════════
-# EVENTS
-# ═══════════════════════════════════════════════
+    await interaction.response.send_message("Временный канал не найден.", ephemeral=True)
 
 @bot.event
 async def on_ready():
     await bot.tree.sync()
-    print(f"✅ Бот {bot.user} запущен на Railway и работает 24/7!")
-    print(f"🎯 Сервер: {GUILD_ID}")
-    print(f"🛡️ Verify: {VERIFY_CHANNEL_ID}/{VERIFY_MESSAGE_ID}")
-    print(f"🔔 Gender: {GENDER_CHANNEL_ID}/{GENDER_MESSAGE_ID}")
-    print(f"💰 {COINS_PER_HOUR}🪙/час | Кастом роль: {CUSTOM_ROLE_PRICE}🪙")
-    print("💀 DEGRADECORE Advanced Bot активен.")
+    print(f"Бот {bot.user} онлайн.")
+    print(f"Сервер: {GUILD_ID}")
+    print(f"Verify: {VERIFY_CHANNEL_ID}/{VERIFY_MESSAGE_ID}")
+    print(f"Gender: {GENDER_CHANNEL_ID}/{GENDER_MESSAGE_ID}")
+    print(f"{COINS_PER_HOUR} coin/час | Кастом: {CUSTOM_ROLE_PRICE} coin")
+    print("DEGRADECORE активен.")
 
 @bot.event
 async def on_member_join(member):
@@ -402,15 +477,14 @@ async def on_member_join(member):
         return
     try:
         embed = discord.Embed(
-            title="🛡️ Добро пожаловать в DEGRADECORE",
+            title="Добро пожаловать в DEGRADECORE",
             description=(
-                f"Привет, {member.mention}!\n\n"
-                "Чтобы получить доступ:\n"
-                f"1. Зайди в <#{VERIFY_CHANNEL_ID}> и нажми ✅\n"
-                "2. (Девушки) Зайди в <#gendercheck> и нажми 🔔\n\n"
-                f"💰 Зарабатывай {COINS_PER_HOUR}🪙/час в войсах!"
+                f"{member.mention}\n\n"
+                f"1. Жми ✅ в <#{VERIFY_CHANNEL_ID}>\n"
+                "2. Девушки — жми 🔔 в gendercheck\n\n"
+                f"{COINS_PER_HOUR} coin/час в войсах."
             ),
-            color=0x8B0000
+            color=WHITE
         )
         await member.send(embed=embed)
     except:
@@ -424,7 +498,6 @@ async def on_raw_reaction_add(payload):
     if not guild:
         return
 
-    # VERIFY GATE — ✅ = boy + m3mbR
     if payload.channel_id == VERIFY_CHANNEL_ID and payload.message_id == VERIFY_MESSAGE_ID and str(payload.emoji) == "✅":
         member = payload.member or await guild.fetch_member(payload.user_id)
         if not member:
@@ -434,9 +507,9 @@ async def on_raw_reaction_add(payload):
         member_role = discord.utils.get(guild.roles, name="m3mbR")
 
         if boy_role and boy_role not in member.roles:
-            await member.add_roles(boy_role, reason="Верификация")
+            await member.add_roles(boy_role, reason="Вериф")
         if member_role and member_role not in member.roles:
-            await member.add_roles(member_role, reason="Верификация")
+            await member.add_roles(member_role, reason="Вериф")
 
         channel = bot.get_channel(VERIFY_CHANNEL_ID)
         if channel:
@@ -445,10 +518,9 @@ async def on_raw_reaction_add(payload):
 
         log_ch = discord.utils.get(guild.text_channels, name="mod-logs")
         if log_ch:
-            await log_ch.send(f"✅ {member.mention} (`{member.name}`) верифицирован.")
-        print(f"✅ {member.name} верифицирован (boy + m3mbR)")
+            await log_ch.send(f"{member.mention} верифицирован.")
+        print(f"{member.name} верифицирован")
 
-    # GENDERCHECK — 🔔 = create temp voice + ping mods
     elif payload.channel_id == GENDER_CHANNEL_ID and payload.message_id == GENDER_MESSAGE_ID and str(payload.emoji) == "🔔":
         member = payload.member or await guild.fetch_member(payload.user_id)
         if not member:
@@ -480,27 +552,27 @@ async def on_raw_reaction_add(payload):
                 name=f"gender-check-{member.name[:10]}",
                 category=mod_cat,
                 overwrites=overwrites,
-                reason=f"Проверка гендера для {member.name}"
+                reason=f"Проверка {member.name}"
             )
 
-            invite = await temp_ch.create_invite(max_age=600, max_uses=5, reason="Проверка гендера")
+            invite = await temp_ch.create_invite(max_age=600, max_uses=5, reason="Проверка")
 
             ping = f"<@&{mod_role.id}>" if mod_role else "@here"
             await channel.send(
-                f"🔔 {ping}\n"
-                f"Пользователь {member.mention} запросил проверку гендера.\n"
-                f"🔗 Временный канал: {invite.url}\n"
-                f"⏳ Канал удалится через 10 минут автоматически."
+                f"{ping}\n"
+                f"{member.mention} запросил проверку.\n"
+                f"Канал: {invite.url}\n"
+                f"Удалится через 10 минут."
             )
 
             await asyncio.sleep(600)
             try:
-                await temp_ch.delete(reason="Время проверки истекло")
+                await temp_ch.delete(reason="Время вышло")
             except:
                 pass
 
         except Exception as e:
-            await channel.send(f"❌ Ошибка создания канала: {e}")
+            await channel.send(f"Ошибка: {e}")
 
 @bot.event
 async def on_voice_state_update(member, before, after):
@@ -520,7 +592,7 @@ async def on_voice_state_update(member, before, after):
             if coins > 0:
                 data.economy[uid] = data.economy.get(uid, 0) + coins
                 data.save_economy()
-                print(f"💰 {member.name} +{coins}🪙 ({hours:.2f}ч)")
+                print(f"{member.name} +{coins} coin ({hours:.2f}ч)")
     elif before.channel is not None and after.channel is not None and before.channel != after.channel:
         join_time = data.voice_sessions.pop(uid, None)
         if join_time:
@@ -547,7 +619,7 @@ async def on_message(message):
     if link_pattern.search(message.content):
         try:
             await message.delete()
-            await message.channel.send(f"{message.author.mention} ссылки запрещены. Только @#! может постить ссылки.", delete_after=5)
+            await message.channel.send(f"{message.author.mention} ссылки запрещены. Только @#!.", delete_after=5)
         except:
             pass
         return
@@ -555,23 +627,20 @@ async def on_message(message):
     if message.attachments:
         try:
             await message.delete()
-            await message.channel.send(f"{message.author.mention} изображения и файлы запрещены. Только @#! может загружать вложения.", delete_after=5)
+            await message.channel.send(f"{message.author.mention} файлы запрещены. Только @#!.", delete_after=5)
         except:
             pass
         return
 
     await bot.process_commands(message)
 
-# ═══════════════════════════════════════════════
-# START
-# ═══════════════════════════════════════════════
 if __name__ == "__main__":
     if not BOT_TOKEN or BOT_TOKEN == "ВСТАВЬ_ТОКЕН_БОТА_СЮДА":
-        print("❌ BOT_TOKEN не задан!")
+        print("BOT_TOKEN не задан!")
     elif GUILD_ID == 1234567890123456789:
-        print("❌ GUILD_ID не задан!")
+        print("GUILD_ID не задан!")
     elif VERIFY_CHANNEL_ID == 1234567890123456789:
-        print("❌ VERIFY_CHANNEL_ID не задан!")
+        print("VERIFY_CHANNEL_ID не задан!")
     else:
-        print("🚀 Запуск DEGRADECORE v3...")
+        print("Запуск DEGRADECORE...")
         bot.run(BOT_TOKEN)
